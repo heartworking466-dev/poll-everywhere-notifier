@@ -6,17 +6,16 @@ Automatically detects new questions on Poll Everywhere pages and sends Chrome de
 
 ## 📁 Project Structure
 
-
 pollev-notifier/
-├── manifest.json # Extension configuration (Manifest V3)
-├── content.js # DOM detection script injected into pages
-├── background.js # Service Worker (handles notifications)
-├── popup.html # Popup UI when clicking extension icon
-├── popup.js # Popup logic
+├── manifest.json      # Extension configuration (Manifest V3)
+├── content.js         # DOM detection script injected into pages
+├── background.js      # Service Worker (handles notifications)
+├── popup.html         # Popup UI when clicking extension icon
+├── popup.js           # Popup logic
 └── icons/
-├── icon16.png
-├── icon48.png
-└── icon128.png
+    ├── icon16.png
+    ├── icon48.png
+    └── icon128.png
 
 
 ---
