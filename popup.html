@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>Poll Everywhere 題目偵測器</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 320px;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f1117; color: #e8eaf0; overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+      padding: 18px 20px 14px; border-bottom: 1px solid #2a3048;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .header-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #4f8ef7, #7c5cbf);
+      border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(79,142,247,0.3);
+    }
+    .header-text h1 { font-size: 13px; font-weight: 700; color: #f0f2ff; letter-spacing: 0.3px; }
+    .header-text p  { font-size: 10.5px; color: #7a82a0; margin-top: 2px; }
+    .body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* 通知開關 */
+    .status-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #161b2b; border: 1px solid #252d45; border-radius: 12px; padding: 12px 16px;
+    }
+    .status-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #c8ccde; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50;
+      box-shadow: 0 0 0 0 rgba(76,175,80,0.4); animation: pulse 2s infinite; transition: background 0.3s; }
+    .dot.off { background: #555970; box-shadow: none; animation: none; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(76,175,80,0.5); }
+      70%  { box-shadow: 0 0 0 7px rgba(76,175,80,0);   }
+      100% { box-shadow: 0 0 0 0   rgba(76,175,80,0);   }
+    }
+    .toggle-wrap { position: relative; width: 44px; height: 24px; }
+    .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track { position: absolute; inset: 0; background: #2a3048; border-radius: 24px; cursor: pointer; transition: background 0.25s; }
+    .toggle-track::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+      background: #7a82a0; border-radius: 50%; transition: transform 0.25s, background 0.25s; }
+    .toggle-wrap input:checked + .toggle-track { background: linear-gradient(135deg, #4f8ef7, #7c5cbf); }
+    .toggle-wrap input:checked + .toggle-track::before { transform: translateX(20px); background: #fff; }
+
+    /* 分隔線 */
+    .divider { height: 1px; background: #1e2640; margin: 0 -2px; }
+
+    /* Discord 設定區塊 */
+    .section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: #4f8ef7; margin-bottom: 8px;
+    }
+    .webhook-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .webhook-input {
+      width: 100%; padding: 10px 12px; border-radius: 9px;
+      background: #161b2b; border: 1px solid #252d45;
+      color: #c8ccde; font-size: 11.5px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .webhook-input::placeholder { color: #3d4560; }
+    .webhook-input:focus { border-color: #4f8ef7; }
+    .webhook-input.error { border-color: #ef5350; }
+    .webhook-input.success { border-color: #4caf50; }
+
+    .webhook-actions { display: flex; gap: 8px; }
+    .btn {
+      flex: 1; padding: 9px 12px; border-radius: 9px; border: none;
+      font-size: 11.5px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.2px;
+    }
+    .btn-primary { background: linear-gradient(135deg, #4f8ef7, #7c5cbf); color: #fff; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-ghost { background: #1e2640; color: #8892b0; border: 1px solid #2a3048; }
+    .btn-ghost:hover { background: #252d45; color: #c8ccde; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .webhook-status {
+      font-size: 11px; min-height: 16px; padding: 0 2px;
+      transition: color 0.2s;
+    }
+    .webhook-status.ok  { color: #4caf50; }
+    .webhook-status.err { color: #ef5350; }
+    .webhook-status.info { color: #7a82a0; }
+
+    /* 上次題目 */
+    .question-card {
+      background: #161b2b; border: 1px solid #252d45; border-radius: 12px; padding: 14px 16px;
+    }
+    .question-text { font-size: 12.5px; color: #c8ccde; line-height: 1.55; word-break: break-word;
+      max-height: 70px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2a3048 transparent; }
+    .question-text.empty { color: #4a5270; font-style: italic; }
+
+    /* 頁面狀態 */
+    .page-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #555970; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px;
+      font-size: 10.5px; font-weight: 600; background: #1e2640; color: #7a82a0; border: 1px solid #2a3048; }
+    .badge.active { background: rgba(76,175,80,0.12); color: #4caf50; border-color: rgba(76,175,80,0.3); }
+
+    /* 底部按鈕 */
+    .actions { display: flex; gap: 8px; }
+    .btn-secondary { flex: 1; padding: 9px 12px; border-radius: 9px; border: none;
+      font-size: 11.5px; font-weight: 600; cursor: pointer; background: #1e2640;
+      color: #8892b0; border: 1px solid #2a3048; transition: all 0.2s; }
+    .btn-secondary:hover { background: #252d45; color: #c8ccde; }
+    .btn-danger { flex: 1; padding: 9px 12px; border-radius: 9px; border: none;
+      font-size: 11.5px; font-weight: 600; cursor: pointer;
+      background: rgba(239,83,80,0.1); color: #ef5350; border: 1px solid rgba(239,83,80,0.25); transition: all 0.2s; }
+    .btn-danger:hover { background: rgba(239,83,80,0.2); }
+
+    .footer { padding: 10px 20px; border-top: 1px solid #1e2640; text-align: center; font-size: 10px; color: #363d57; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">🗳️</div>
+    <div class="header-text">
+      <h1>Poll Everywhere 偵測器</h1>
+      <p>自動偵測新題目並發送通知</p>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- 通知開關 -->
+    <div class="status-row">
+      <div class="status-label">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusLabel">通知已啟用</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="notifToggle" checked />
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <!-- 頁面狀態 -->
+    <div class="page-status">
+      目前分頁：<span class="badge" id="pageStatusBadge">檢查中…</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Discord Webhook 設定 -->
+    <div>
+      <div class="section-label">📱 Discord 手機通知</div>
+      <div class="webhook-wrap">
+        <input
+          type="password"
+          class="webhook-input"
+          id="webhookInput"
+          placeholder="貼上 Discord Webhook URL…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="webhook-actions">
+          <button class="btn btn-primary" id="saveWebhookBtn">儲存</button>
+          <button class="btn btn-ghost" id="testWebhookBtn">測試發送</button>
+        </div>
+        <div class="webhook-status info" id="webhookStatus">尚未設定 Webhook URL</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 上次題目 -->
+    <div class="question-card">
+      <div class="section-label">上次偵測到的題目</div>
+      <div class="question-text empty" id="lastQuestionText">尚未偵測到任何題目</div>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="actions">
+      <button class="btn-secondary" id="refreshBtn">🔄 重新整理</button>
+      <button class="btn-danger" id="clearBtn">🗑️ 清除記錄</button>
+    </div>
+
+  </div>
+
+  <div class="footer">v1.1.0 · Poll Everywhere 題目偵測器</div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Poll Everywhere 題目偵測器",
+  "version": "1.0.0",
+  "description": "自動偵測 Poll Everywhere 頁面上的新題目並發出桌面通知",
+
+  "permissions": [
+    "notifications",
+    "storage",
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "https://*.polleverywhere.com/*",
+    "https://*.pollev.com/*",
+    "https://discord.com/api/webhooks/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.polleverywhere.com/*",
+        "https://*.pollev.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Poll Everywhere 題目偵測器"
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
